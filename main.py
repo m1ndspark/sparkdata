@@ -1,21 +1,30 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
+from pydantic import BaseModel
+from typing import List, Optional
+from difflib import SequenceMatcher
+import pandas as pd
+import io
 
 app = FastAPI()
+
+# Temporary in-memory storage for uploaded data
+uploaded_data_cache = {}
 
 @app.get("/")
 def read_root():
     return {"message": "FastAPI is running successfully!"}
 
-from pydantic import BaseModel
-from typing import List, Optional
 
+# ROI Analysis
 class LeadRecord(BaseModel):
     email: str
     revenue: Optional[float] = 0.0
 
+
 class AnalyzeRequest(BaseModel):
     ad_spend: float
     leads: List[LeadRecord]
+
 
 @app.post("/analyze_roi")
 def analyze_roi(request: AnalyzeRequest):
@@ -27,23 +36,29 @@ def analyze_roi(request: AnalyzeRequest):
         "roi": round(roi, 2)
     }
 
-from difflib import SequenceMatcher
 
+# Lead Matching
 class LeadMatchRequest(BaseModel):
     ads_leads: List[str]
     crm_leads: List[str]
+
 
 @app.post("/match_leads")
 def match_leads(request: LeadMatchRequest):
     matches = []
     for ad_email in request.ads_leads:
         for crm_email in request.crm_leads:
-            # Basic fuzzy match for similar emails
             ratio = SequenceMatcher(None, ad_email.lower(), crm_email.lower()).ratio()
             if ratio > 0.8:
-                matches.append({"ad_email": ad_email, "crm_email": crm_email, "match_score": round(ratio, 2)})
+                matches.append({
+                    "ad_email": ad_email,
+                    "crm_email": crm_email,
+                    "match_score": round(ratio, 2)
+                })
     return {"matches": matches, "total_matches": len(matches)}
 
+
+# ROI Reporting
 @app.get("/report")
 def get_report(ad_spend: float, total_revenue: float):
     if ad_spend <= 0:
@@ -57,10 +72,8 @@ def get_report(ad_spend: float, total_revenue: float):
         "summary": summary
     }
 
-from fastapi import File, UploadFile
-import pandas as pd
-import io
 
+# File Upload + Cache
 @app.post("/upload_data")
 async def upload_data(file: UploadFile = File(...)):
     filename = file.filename.lower()
@@ -74,11 +87,12 @@ async def upload_data(file: UploadFile = File(...)):
     else:
         return {"error": "Unsupported file type. Please upload CSV, Excel, or JSON."}
 
+    # Store DataFrame in memory
+    uploaded_data_cache["latest"] = df
+
     return {
         "filename": filename,
         "rows": len(df),
-        "columns": list(df.columns)
+        "columns": list(df.columns),
+        "message": "File uploaded and cached successfully."
     }
-
-# Temporary in-memory storage for uploaded data
-uploaded_data_cache = {}
