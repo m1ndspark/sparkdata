@@ -96,3 +96,15 @@ async def upload_data(file: UploadFile = File(...)):
         "columns": list(df.columns),
         "message": "File uploaded and cached successfully."
     }
+
+@app.get("/cache_status")
+def cache_status():
+    if "latest" not in uploaded_data_cache:
+        return {"cached": False, "message": "No data currently cached."}
+
+    df = uploaded_data_cache["latest"]
+    return {
+        "cached": True,
+        "rows": len(df),
+        "columns": list(df.columns)
+    }
