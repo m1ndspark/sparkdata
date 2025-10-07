@@ -79,3 +79,6 @@ async def upload_data(file: UploadFile = File(...)):
         "rows": len(df),
         "columns": list(df.columns)
     }
+
+# Temporary in-memory storage for uploaded data
+uploaded_data_cache = {}
