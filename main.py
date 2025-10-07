@@ -56,3 +56,26 @@ def get_report(ad_spend: float, total_revenue: float):
         "roi": round(roi, 2),
         "summary": summary
     }
+
+from fastapi import File, UploadFile
+import pandas as pd
+import io
+
+@app.post("/upload_data")
+async def upload_data(file: UploadFile = File(...)):
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        df = pd.read_csv(io.BytesIO(await file.read()))
+    elif filename.endswith((".xls", ".xlsx")):
+        df = pd.read_excel(io.BytesIO(await file.read()))
+    elif filename.endswith(".json"):
+        df = pd.read_json(io.BytesIO(await file.read()))
+    else:
+        return {"error": "Unsupported file type. Please upload CSV, Excel, or JSON."}
+
+    return {
+        "filename": filename,
+        "rows": len(df),
+        "columns": list(df.columns)
+    }
