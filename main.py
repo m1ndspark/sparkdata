@@ -43,3 +43,16 @@ def match_leads(request: LeadMatchRequest):
             if ratio > 0.8:
                 matches.append({"ad_email": ad_email, "crm_email": crm_email, "match_score": round(ratio, 2)})
     return {"matches": matches, "total_matches": len(matches)}
+
+@app.get("/report")
+def get_report(ad_spend: float, total_revenue: float):
+    if ad_spend <= 0:
+        return {"error": "Ad spend must be greater than zero."}
+    roi = total_revenue / ad_spend
+    summary = f"Your total revenue of ${total_revenue:,.2f} generated an ROI of {roi:.2f}x based on an ad spend of ${ad_spend:,.2f}."
+    return {
+        "ad_spend": ad_spend,
+        "total_revenue": total_revenue,
+        "roi": round(roi, 2),
+        "summary": summary
+    }
