@@ -50,13 +50,6 @@ except Exception as e:
     print("⚠️  GOOGLE ROUTE IMPORT FAILED:", e, file=sys.stderr)
     traceback.print_exc()
 
-
-# --------------------------------------------------
-# In-Memory Caches
-# --------------------------------------------------
-# uploaded_data_cache = {}  # For uploaded files
-# google_auth_cache = {}    # For Google OAuth tokens
-
 # --------------------------------------------------
 # Initialize OpenAI Client
 # --------------------------------------------------
