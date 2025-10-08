@@ -6,20 +6,26 @@ import pandas as pd
 import io
 import os
 from openai import OpenAI
+from fastapi.responses import RedirectResponse, JSONResponse
+from requests_oauthlib import OAuth2Session
 
 app = FastAPI()
 
-# Temporary in-memory storage for uploaded data
-uploaded_data_cache = {}
+# --- In-Memory Storage ---
+uploaded_data_cache = {}  # For uploaded files
+google_auth_cache = {}    # For Google OAuth tokens
 
+# --- Initialize OpenAI ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+
+# --- Root Endpoint ---
 @app.get("/")
 def read_root():
     return {"message": "FastAPI is running successfully!"}
 
 
-# ROI Analysis
+# --- ROI Analysis ---
 class LeadRecord(BaseModel):
     email: str
     revenue: Optional[float] = 0.0
@@ -32,7 +38,6 @@ class AnalyzeRequest(BaseModel):
 
 @app.post("/analyze_roi")
 def analyze_roi(request: Optional[AnalyzeRequest] = None):
-    # If JSON data is provided
     if request:
         total_revenue = sum(lead.revenue for lead in request.leads)
         roi = total_revenue / request.ad_spend if request.ad_spend > 0 else 0
@@ -43,7 +48,6 @@ def analyze_roi(request: Optional[AnalyzeRequest] = None):
             "roi": round(roi, 2)
         }
 
-    # If no JSON data provided, use cached upload
     if "latest" not in uploaded_data_cache:
         return {"error": "No data provided and no cached upload found."}
 
@@ -51,7 +55,6 @@ def analyze_roi(request: Optional[AnalyzeRequest] = None):
     if not {"email", "revenue"}.issubset(df.columns):
         return {"error": "Cached data missing required columns: email, revenue."}
 
-    # Use placeholder ad spend until integrated with UI
     ad_spend = 1000.0
     total_revenue = df["revenue"].sum()
     roi = total_revenue / ad_spend if ad_spend > 0 else 0
@@ -64,7 +67,7 @@ def analyze_roi(request: Optional[AnalyzeRequest] = None):
     }
 
 
-# Lead Matching
+# --- Lead Matching ---
 class LeadMatchRequest(BaseModel):
     ads_leads: List[str]
     crm_leads: List[str]
@@ -85,7 +88,7 @@ def match_leads(request: LeadMatchRequest):
     return {"matches": matches, "total_matches": len(matches)}
 
 
-# ROI Reporting
+# --- ROI Reporting ---
 @app.get("/report")
 def get_report(ad_spend: float, total_revenue: float):
     if ad_spend <= 0:
@@ -100,7 +103,7 @@ def get_report(ad_spend: float, total_revenue: float):
     }
 
 
-# File Upload + Cache
+# --- File Upload + Cache ---
 @app.post("/upload_data")
 async def upload_data(file: UploadFile = File(...)):
     filename = file.filename.lower()
@@ -114,7 +117,6 @@ async def upload_data(file: UploadFile = File(...)):
     else:
         return {"error": "Unsupported file type. Please upload CSV, Excel, or JSON."}
 
-    # Store DataFrame in memory
     uploaded_data_cache["latest"] = df
 
     return {
@@ -138,7 +140,7 @@ def cache_status():
     }
 
 
-# AI Summary Generation (OpenAI)
+# --- AI Summary Generation (OpenAI) ---
 @app.get("/generate_summary")
 def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
     if ad_spend <= 0 or total_revenue <= 0:
@@ -179,8 +181,6 @@ def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
         "summary": ai_summary
     }
 
-from fastapi.responses import RedirectResponse, JSONResponse
-from requests_oauthlib import OAuth2Session
 
 # --- Google OAuth Configuration ---
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -196,6 +196,7 @@ SCOPE = [
     "https://www.googleapis.com/auth/adwords",
     "https://www.googleapis.com/auth/analytics.readonly"
 ]
+
 
 @app.get("/auth/login")
 def google_login():
@@ -224,8 +225,8 @@ def google_callback(code: str):
 
     # Prepare a safe display version
     safe_token = {
-        "access_token": token.get("access_token")[:12] + "...",
-        "refresh_token": token.get("refresh_token")[:12] + "...",
+        "access_token": token.get("access_token", "")[:12] + "...",
+        "refresh_token": token.get("refresh_token", "")[:12] + "...",
         "scope": token.get("scope"),
         "expires_in": token.get("expires_in"),
         "token_type": token.get("token_type"),
