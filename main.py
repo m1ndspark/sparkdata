@@ -13,6 +13,19 @@ import sys, traceback
 
 app = FastAPI()
 
+print("✅ settings_routes.py loaded", flush=True)
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from services.settings_service import SettingsService
+from models.api_key_model import Base
+import os
+
+print("✅ reached APIRouter initialization", flush=True)
+router = APIRouter()
+
+
 # --- Settings Routes Import (with diagnostic logging) ---
 try:
     from routes import settings_routes
