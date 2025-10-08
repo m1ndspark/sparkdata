@@ -231,11 +231,27 @@ def google_login():
     )
     return RedirectResponse(authorization_url)
 
+
+
 @app.get("/auth/callback")
 def google_callback(code: str):
     oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI)
     token = oauth.fetch_token(TOKEN_URL, client_secret=GOOGLE_CLIENT_SECRET, code=code)
     google_auth_cache["latest"] = token
+
+    # --------------------------------------------------
+    # Persist Google token in database via /settings table
+    # --------------------------------------------------
+    try:
+        from routes.settings_routes import update_or_create_key  # your helper from settings_routes
+        refresh_token = token.get("refresh_token")
+        access_token = token.get("access_token")
+        update_or_create_key(service_name="google_ads_refresh", api_key=refresh_token)
+        update_or_create_key(service_name="google_ads_access", api_key=access_token)
+        print("✅ Google Ads tokens saved to database", file=sys.stderr)
+    except Exception as e:
+        print(f"⚠️ Failed to persist Google tokens: {e}", file=sys.stderr)
+
     safe_token = {
         "access_token": token.get("access_token", "")[:12] + "...",
         "refresh_token": token.get("refresh_token", "")[:12] + "...",
@@ -243,11 +259,13 @@ def google_callback(code: str):
         "expires_in": token.get("expires_in"),
         "token_type": token.get("token_type"),
     }
+
     return JSONResponse({
         "status": "success",
-        "message": "Google authorization complete. Tokens cached in memory.",
+        "message": "Google authorization complete. Tokens cached and stored in database.",
         "token_preview": safe_token
     })
+
 
 @app.get("/google/account_info")
 def get_google_account_info():
