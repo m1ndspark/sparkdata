@@ -14,6 +14,12 @@ print("✅ google_routes.py loaded successfully", file=sys.stderr)
 
 from main import google_auth_cache
 
+# Import database helpers from settings_routes
+try:
+    from routes.settings_routes import get_api_key
+except Exception as e:
+    print(f"⚠️  Could not import settings helpers: {e}", file=sys.stderr)
+
 
 @router.get("/ads_summary")
 def get_ads_summary(
@@ -22,14 +28,40 @@ def get_ads_summary(
     ad_spend: Optional[float] = Query(None, description="Ad spend for ROI calculation"),
     total_revenue: Optional[float] = Query(None, description="Total revenue from ads")
 ):
-    if "latest" not in google_auth_cache:
-        return JSONResponse(status_code=401, content={"error": "No Google tokens found. Please authorize first at /auth/login."})
+    # --------------------------------------------------
+    # Step 1: Verify tokens (memory or DB)
+    # --------------------------------------------------
+    token = google_auth_cache.get("latest")
 
-    token = google_auth_cache["latest"]
+    # If memory cache is empty, try to load from DB
+    if not token:
+        try:
+            refresh_token = get_api_key("google_ads_refresh")
+            access_token = get_api_key("google_ads_access")
+
+            if refresh_token and access_token:
+                token = {"access_token": access_token, "refresh_token": refresh_token}
+                google_auth_cache["latest"] = token
+                print("✅ Google Ads tokens loaded from DB", file=sys.stderr)
+            else:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "No Google tokens found. Please authorize first at /auth/login."}
+                )
+        except Exception as e:
+            print(f"⚠️  Error retrieving tokens from DB: {e}", file=sys.stderr)
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to load Google tokens from database."}
+            )
+
     access_token = token.get("access_token")
     if not access_token:
         return JSONResponse(status_code=401, content={"error": "Access token missing or invalid."})
 
+    # --------------------------------------------------
+    # Step 2: Prepare API request
+    # --------------------------------------------------
     headers = {
         "Authorization": f"Bearer {access_token}",
         "developer-token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
@@ -60,8 +92,14 @@ def get_ads_summary(
         return JSONResponse(status_code=500, content={"error": f"Request failed: {str(e)}"})
 
     if response.status_code != 200:
-        return JSONResponse(status_code=response.status_code, content={"error": "Failed to retrieve Ads data.", "details": response.text})
+        return JSONResponse(
+            status_code=response.status_code,
+            content={"error": "Failed to retrieve Ads data.", "details": response.text}
+        )
 
+    # --------------------------------------------------
+    # Step 3: Parse & Compute Metrics
+    # --------------------------------------------------
     data = response.json()
     results: List[dict] = []
     total_impressions = 0
