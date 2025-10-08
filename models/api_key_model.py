@@ -1,3 +1,5 @@
+# models/api_key_model.py
+
 from sqlalchemy import Column, Integer, String, DateTime, func
 from sqlalchemy.orm import declarative_base
 
@@ -24,4 +26,3 @@ class APIKey(Base):
             "key_preview": masked_value,
             "updated_at": self.updated_at.strftime("%m-%d-%Y %I:%M %p") if self.updated_at else None,
         }
-
