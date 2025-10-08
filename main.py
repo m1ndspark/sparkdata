@@ -8,18 +8,23 @@ import os
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
 from requests_oauthlib import OAuth2Session
-from routes import settings_routes
 import requests
-
-
+import sys, traceback
 
 app = FastAPI()
 
-app.include_router(
-    settings_routes.router,
-    prefix="/settings",
-    tags=["Settings"]
-)
+# --- Settings Routes Import (with diagnostic logging) ---
+try:
+    from routes import settings_routes
+    print("✅ settings_routes imported successfully", file=sys.stderr)
+    app.include_router(
+        settings_routes.router,
+        prefix="/settings",
+        tags=["Settings"]
+    )
+except Exception as e:
+    print("⚠️  SETTINGS ROUTE IMPORT FAILED:", e, file=sys.stderr)
+    traceback.print_exc()
 
 # --- In-Memory Storage ---
 uploaded_data_cache = {}  # For uploaded files
