@@ -62,9 +62,12 @@ def get_ads_summary(
     # --------------------------------------------------
     # Step 2: Prepare API request
     # --------------------------------------------------
+    login_customer_id = os.getenv("GOOGLE_MCC_ID", "6207912456")  # your manager ID
+
     headers = {
         "Authorization": f"Bearer {access_token}",
         "developer-token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
+        "login-customer-id": login_customer_id,  # <--- key addition
         "Content-Type": "application/json"
     }
 
@@ -83,19 +86,9 @@ def get_ads_summary(
         """
     }
 
+    # use the CLIENT (child) account id here — not the MCC id
     url = f"https://googleads.googleapis.com/v17/customers/{customer_id}/googleAds:searchStream"
 
-    try:
-        response = requests.post(url, headers=headers, json=query)
-    except Exception as e:
-        traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": f"Request failed: {str(e)}"})
-
-    if response.status_code != 200:
-        return JSONResponse(
-            status_code=response.status_code,
-            content={"error": "Failed to retrieve Ads data.", "details": response.text}
-        )
 
     # --------------------------------------------------
     # Step 3: Parse & Compute Metrics
