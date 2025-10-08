@@ -10,6 +10,7 @@ import os
 import sys
 import traceback
 import requests
+from utils.global_cache import google_auth_cache
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
 from requests_oauthlib import OAuth2Session
