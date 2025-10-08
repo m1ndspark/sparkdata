@@ -1,6 +1,38 @@
-fastapi
-uvicorn[standard]
-pandas
-python-multipart
-openai
-requests-oauthlib
+# --- Core Framework ---
+fastapi==0.110.0
+uvicorn==0.29.0
+
+# --- Data Handling ---
+pandas==2.2.2
+numpy==1.26.4
+
+# --- AI Integration ---
+openai==1.30.1
+
+# --- Google Integrations (if applicable) ---
+google-auth==2.29.0
+google-auth-oauthlib==1.2.0
+google-api-python-client==2.132.0
+
+# --- HTTP & Networking ---
+requests==2.31.0
+aiohttp==3.9.3
+httpx==0.27.0
+
+# --- Database & ORM ---
+SQLAlchemy==2.0.29
+psycopg2-binary==2.9.9
+
+# --- Environment Management ---
+python-dotenv==1.0.1
+
+# --- Encryption / Security ---
+cryptography==42.0.7
+
+# --- File and PDF Handling ---
+fpdf==1.7.2
+pydantic==2.6.3
+
+# --- Optional Utils ---
+python-multipart==0.0.9  # For file uploads
+
