@@ -269,3 +269,57 @@ def get_google_account_info():
             "picture": user_info.get("picture")
         }
     }
+
+@app.get("/google/ads_summary")
+def get_ads_summary(customer_id: str = "6207912456"):
+    """Fetch recent ad spend summary from Google Ads API"""
+    if "latest" not in google_auth_cache:
+        return {"error": "No Google tokens found. Please authorize first at /auth/login."}
+
+    token = google_auth_cache["latest"]
+    access_token = token.get("access_token")
+    if not access_token:
+        return {"error": "Access token missing or invalid."}
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "developer-token": "INSERT_YOUR_DEVELOPER_TOKEN_HERE",
+        "Content-Type": "application/json"
+    }
+
+    # Google Ads Query Language (GAQL) query for daily spend
+    query = {
+        "query": """
+            SELECT
+              customer.descriptive_name,
+              segments.date,
+              metrics.impressions,
+              metrics.clicks,
+              metrics.cost_micros
+            FROM customer
+            WHERE segments.date DURING LAST_7_DAYS
+            ORDER BY segments.date DESC
+        """
+    }
+
+    url = f"https://googleads.googleapis.com/v17/customers/{customer_id}/googleAds:searchStream"
+
+    response = requests.post(url, headers=headers, json=query)
+
+    if response.status_code != 200:
+        return {"error": "Failed to retrieve Ads data.", "details": response.text}
+
+    data = response.json()
+
+    # Convert cost from micros to dollars
+    results = []
+    for chunk in data:
+        for row in chunk.get("results", []):
+            results.append({
+                "date": row["segments"]["date"],
+                "impressions": row["metrics"]["impressions"],
+                "clicks": row["metrics"]["clicks"],
+                "spend_usd": round(row["metrics"]["cost_micros"] / 1_000_000, 2)
+            })
+
+    return {"status": "success", "records": results[:10]}  # return up to 10 most recent days
