@@ -1,5 +1,8 @@
 # sparkdata/routes/settings_routes.py
 
+print("🟢 settings_routes module starting up...", flush=True)
+
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -8,6 +11,9 @@ from sparkdata.models.api_key_model import Base
 import os  # ✅ You need this for DATABASE_URL
 
 router = APIRouter()
+
+print("🟢 router initialized successfully", flush=True)
+
 
 # --------------------------------------------------
 # Database Setup
