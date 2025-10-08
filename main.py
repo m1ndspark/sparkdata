@@ -4,11 +4,15 @@ from typing import List, Optional
 from difflib import SequenceMatcher
 import pandas as pd
 import io
+import os
+from openai import OpenAI
 
 app = FastAPI()
 
 # Temporary in-memory storage for uploaded data
 uploaded_data_cache = {}
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.get("/")
 def read_root():
@@ -133,33 +137,8 @@ def cache_status():
         "columns": list(df.columns)
     }
 
-@app.get("/generate_summary")
-def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
-    if ad_spend <= 0 or total_revenue <= 0:
-        return {"error": "Both ad_spend and total_revenue must be greater than zero."}
 
-    roi = total_revenue / ad_spend
-    gain = total_revenue - ad_spend
-
-    summary = (
-        f"Between your ad spend of ${ad_spend:,.2f} and total revenue of ${total_revenue:,.2f}, "
-        f"you achieved an ROI of {roi:.2f}x. "
-        f"This means your campaigns generated a profit of ${gain:,.2f}."
-    )
-
-    return {
-        "ad_spend": ad_spend,
-        "total_revenue": total_revenue,
-        "roi": round(roi, 2),
-        "profit": round(gain, 2),
-        "summary": summary
-    }
-
-import os
-from openai import OpenAI
-
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+# AI Summary Generation (OpenAI)
 @app.get("/generate_summary")
 def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
     if ad_spend <= 0 or total_revenue <= 0:
