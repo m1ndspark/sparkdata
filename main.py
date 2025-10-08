@@ -77,3 +77,58 @@ def match_leads(request: LeadMatchRequest):
                     "ad_email": ad_email,
                     "crm_email": crm_email,
                     "match_score": round(ratio, 2)
+                })
+    return {"matches": matches, "total_matches": len(matches)}
+
+
+# ROI Reporting
+@app.get("/report")
+def get_report(ad_spend: float, total_revenue: float):
+    if ad_spend <= 0:
+        return {"error": "Ad spend must be greater than zero."}
+    roi = total_revenue / ad_spend
+    summary = f"Your total revenue of ${total_revenue:,.2f} generated an ROI of {roi:.2f}x based on an ad spend of ${ad_spend:,.2f}."
+    return {
+        "ad_spend": ad_spend,
+        "total_revenue": total_revenue,
+        "roi": round(roi, 2),
+        "summary": summary
+    }
+
+
+# File Upload + Cache
+@app.post("/upload_data")
+async def upload_data(file: UploadFile = File(...)):
+    filename = file.filename.lower()
+
+    if filename.endswith(".csv"):
+        df = pd.read_csv(io.BytesIO(await file.read()))
+    elif filename.endswith((".xls", ".xlsx")):
+        df = pd.read_excel(io.BytesIO(await file.read()))
+    elif filename.endswith(".json"):
+        df = pd.read_json(io.BytesIO(await file.read()))
+    else:
+        return {"error": "Unsupported file type. Please upload CSV, Excel, or JSON."}
+
+    # Store DataFrame in memory
+    uploaded_data_cache["latest"] = df
+
+    return {
+        "filename": filename,
+        "rows": len(df),
+        "columns": list(df.columns),
+        "message": "File uploaded and cached successfully."
+    }
+
+
+@app.get("/cache_status")
+def cache_status():
+    if "latest" not in uploaded_data_cache:
+        return {"cached": False, "message": "No data currently cached."}
+
+    df = uploaded_data_cache["latest"]
+    return {
+        "cached": True,
+        "rows": len(df),
+        "columns": list(df.columns)
+    }
