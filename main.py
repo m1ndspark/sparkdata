@@ -54,8 +54,8 @@ except Exception as e:
 # --------------------------------------------------
 # In-Memory Caches
 # --------------------------------------------------
-uploaded_data_cache = {}  # For uploaded files
-google_auth_cache = {}    # For Google OAuth tokens
+# uploaded_data_cache = {}  # For uploaded files
+# google_auth_cache = {}    # For Google OAuth tokens
 
 # --------------------------------------------------
 # Initialize OpenAI Client
