@@ -237,3 +237,35 @@ def google_callback(code: str):
         "message": "Google authorization complete. Tokens cached in memory.",
         "token_preview": safe_token
     })
+
+import requests
+
+@app.get("/google/account_info")
+def get_google_account_info():
+    """Fetch and display connected Google account details"""
+    if "latest" not in google_auth_cache:
+        return {"error": "No Google tokens found. Please authorize first at /auth/login."}
+
+    token = google_auth_cache["latest"]
+    access_token = token.get("access_token")
+
+    if not access_token:
+        return {"error": "Access token missing or invalid."}
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    response = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers=headers)
+
+    if response.status_code != 200:
+        return {"error": "Failed to retrieve account info.", "details": response.text}
+
+    user_info = response.json()
+
+    return {
+        "status": "success",
+        "account": {
+            "name": user_info.get("name"),
+            "email": user_info.get("email"),
+            "verified_email": user_info.get("verified_email"),
+            "picture": user_info.get("picture")
+        }
+    }
