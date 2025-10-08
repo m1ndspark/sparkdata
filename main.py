@@ -241,13 +241,23 @@ def google_login():
     )
     return RedirectResponse(authorization_url)
 
-
-
-@app.get("/auth/callback")
+    @app.get("/auth/callback")
 def google_callback(code: str):
     oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI)
     token = oauth.fetch_token(TOKEN_URL, client_secret=GOOGLE_CLIENT_SECRET, code=code)
-    google_auth_cache["latest"] = token
+    google_auth_cache["latest"] = token  # Shared cache from utils/global_cache.py
+    safe_token = {
+        "access_token": token.get("access_token", "")[:12] + "...",
+        "refresh_token": token.get("refresh_token", "")[:12] + "...",
+        "scope": token.get("scope"),
+        "expires_in": token.get("expires_in"),
+        "token_type": token.get("token_type"),
+    }
+    return JSONResponse({
+        "status": "success",
+        "message": "Google authorization complete. Tokens cached and stored in memory.",
+        "token_preview": safe_token
+    })
 
     # --------------------------------------------------
     # Persist Google token in database via /settings table
