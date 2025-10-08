@@ -8,9 +8,18 @@ import os
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
 from requests_oauthlib import OAuth2Session
+from routes import settings_routes
 import requests
 
+
+
 app = FastAPI()
+
+app.include_router(
+    settings_routes.router,
+    prefix="/settings",
+    tags=["Settings"]
+)
 
 # --- In-Memory Storage ---
 uploaded_data_cache = {}  # For uploaded files
