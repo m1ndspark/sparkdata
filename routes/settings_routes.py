@@ -1,19 +1,16 @@
-# sparkdata/routes/settings_routes.py
+# routes/settings_routes.py
 
 print("🟢 settings_routes module starting up...", flush=True)
-
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from sparkdata.services.settings_service import SettingsService
-from sparkdata.models.api_key_model import Base
-import os  # ✅ You need this for DATABASE_URL
+from services.settings_service import SettingsService
+from models.api_key_model import Base
+import os  # ✅ Required for DATABASE_URL
 
 router = APIRouter()
-
 print("🟢 router initialized successfully", flush=True)
-
 
 # --------------------------------------------------
 # Database Setup
@@ -28,7 +25,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Create table if it doesn’t exist
 Base.metadata.create_all(bind=engine)
 
-
 def get_db():
     """Dependency that provides a DB session."""
     db = SessionLocal()
@@ -36,7 +32,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 # --------------------------------------------------
 # Routes
@@ -48,7 +43,6 @@ def get_all_keys(db: Session = Depends(get_db)):
     service = SettingsService(db)
     return {"settings": service.get_all_keys()}
 
-
 @router.get("/get/{service_name}")
 def get_single_key(service_name: str, db: Session = Depends(get_db)):
     """Return one stored API key (masked)."""
@@ -58,20 +52,17 @@ def get_single_key(service_name: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Service not found.")
     return result
 
-
 @router.post("/update")
 def update_key(service_name: str, key_value: str, db: Session = Depends(get_db)):
     """Add or update an API key."""
     service = SettingsService(db)
     return service.add_or_update_key(service_name, key_value)
 
-
 @router.delete("/delete/{service_name}")
 def delete_key(service_name: str, db: Session = Depends(get_db)):
     """Delete an API key."""
     service = SettingsService(db)
     return service.delete_key(service_name)
-
 
 @router.post("/test/{service_name}")
 def test_key(service_name: str, db: Session = Depends(get_db)):
