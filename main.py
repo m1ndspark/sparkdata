@@ -178,3 +178,48 @@ def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
         "profit": round(gain, 2),
         "summary": ai_summary
     }
+
+from fastapi.responses import RedirectResponse, JSONResponse
+from requests_oauthlib import OAuth2Session
+
+# --- Google OAuth Configuration ---
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+REDIRECT_URI = "https://sparkdata-app-mceg3.ondigitalocean.app/auth/callback"
+
+AUTHORIZATION_BASE_URL = "https://accounts.google.com/o/oauth2/auth"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
+
+SCOPE = [
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "https://www.googleapis.com/auth/adwords",
+    "https://www.googleapis.com/auth/analytics.readonly"
+]
+
+@app.get("/auth/login")
+def google_login():
+    """Redirect user to Google for authorization"""
+    oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI, scope=SCOPE)
+    authorization_url, state = oauth.authorization_url(
+        AUTHORIZATION_BASE_URL,
+        access_type="offline",
+        prompt="consent"
+    )
+    return RedirectResponse(authorization_url)
+
+
+@app.get("/auth/callback")
+def google_callback(code: str):
+    """Handle the OAuth redirect from Google"""
+    oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI)
+    token = oauth.fetch_token(
+        TOKEN_URL,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        code=code
+    )
+    return JSONResponse({
+        "status": "success",
+        "message": "Google authorization complete.",
+        "token": token
+    })
