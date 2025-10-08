@@ -3,9 +3,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
-from services.settings_service import SettingsService
-from models.api_key_model import Base
-import os
+from sparkdata.services.settings_service import SettingsService
+from sparkdata.models.api_key_model import Base
 
 router = APIRouter()
 
