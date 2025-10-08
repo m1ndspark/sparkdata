@@ -8,6 +8,7 @@ import os
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
 from requests_oauthlib import OAuth2Session
+import requests
 
 app = FastAPI()
 
@@ -220,10 +221,8 @@ def google_callback(code: str):
         code=code
     )
 
-    # Cache tokens in memory
     google_auth_cache["latest"] = token
 
-    # Prepare a safe display version
     safe_token = {
         "access_token": token.get("access_token", "")[:12] + "...",
         "refresh_token": token.get("refresh_token", "")[:12] + "...",
@@ -238,7 +237,6 @@ def google_callback(code: str):
         "token_preview": safe_token
     })
 
-import requests
 
 @app.get("/google/account_info")
 def get_google_account_info():
@@ -270,6 +268,7 @@ def get_google_account_info():
         }
     }
 
+
 @app.get("/google/ads_summary")
 def get_ads_summary(customer_id: str = "6207912456"):
     """Fetch recent ad spend summary from Google Ads API"""
@@ -283,11 +282,10 @@ def get_ads_summary(customer_id: str = "6207912456"):
 
     headers = {
         "Authorization": f"Bearer {access_token}",
-        "developer-token": "INSERT_YOUR_DEVELOPER_TOKEN_HERE",
+        "developer-token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
         "Content-Type": "application/json"
     }
 
-    # Google Ads Query Language (GAQL) query for daily spend
     query = {
         "query": """
             SELECT
@@ -303,7 +301,6 @@ def get_ads_summary(customer_id: str = "6207912456"):
     }
 
     url = f"https://googleads.googleapis.com/v17/customers/{customer_id}/googleAds:searchStream"
-
     response = requests.post(url, headers=headers, json=query)
 
     if response.status_code != 200:
@@ -311,7 +308,6 @@ def get_ads_summary(customer_id: str = "6207912456"):
 
     data = response.json()
 
-    # Convert cost from micros to dollars
     results = []
     for chunk in data:
         for row in chunk.get("results", []):
@@ -322,4 +318,4 @@ def get_ads_summary(customer_id: str = "6207912456"):
                 "spend_usd": round(row["metrics"]["cost_micros"] / 1_000_000, 2)
             })
 
-    return {"status": "success", "records": results[:10]}  # return up to 10 most recent days
+    return {"status": "success", "records": results[:10]}
