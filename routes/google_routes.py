@@ -4,33 +4,20 @@
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from typing import Optional, List
-import os, requests, sys, traceback
-from main import google_auth_cache
+import os
+import requests
+import sys
+import traceback
+from utils.global_cache import google_auth_cache  # ✅ shared cache
 
 router = APIRouter()
 print("✅ google_routes.py loaded successfully", file=sys.stderr)
 
-# Try to import DB helpers (optional persistence)
+# Optional DB helper import
 try:
     from routes.settings_routes import get_api_key
 except Exception as e:
     print(f"⚠️ Could not import settings helpers: {e}", file=sys.stderr)
-
-# --------------------------------------------------
-# Import google_routes dynamically (with error capture)
-# --------------------------------------------------
-try:
-    from routes import google_routes
-    print("✅ google_routes imported successfully", file=sys.stderr)
-    app.include_router(
-        google_routes.router,
-        prefix="",
-        tags=["Google"]
-    )
-except Exception as e:
-    print("⚠️  GOOGLE ROUTE IMPORT FAILED:", e, file=sys.stderr)
-    traceback.print_exc()
-
 
 
 # ==================================================
@@ -40,7 +27,10 @@ except Exception as e:
 def list_google_accounts():
     """List client (non-manager) accounts accessible under the MCC."""
     if "latest" not in google_auth_cache:
-        return JSONResponse(status_code=401, content={"error": "No Google tokens found. Please authorize first at /auth/login."})
+        return JSONResponse(
+            status_code=401,
+            content={"error": "No Google tokens found. Please authorize first at /auth/login."}
+        )
 
     token = google_auth_cache["latest"]
     access_token = token.get("access_token")
