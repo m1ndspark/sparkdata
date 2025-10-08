@@ -1,5 +1,6 @@
+# --------------------------------------------------
 # main.py
-
+# --------------------------------------------------
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
@@ -10,7 +11,7 @@ import os
 import sys
 import traceback
 import requests
-from utils.global_cache import google_auth_cache
+from utils.global_cache import uploaded_data_cache, google_auth_cache
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
 from requests_oauthlib import OAuth2Session
@@ -70,9 +71,11 @@ class LeadRecord(BaseModel):
     email: str
     revenue: Optional[float] = 0.0
 
+
 class AnalyzeRequest(BaseModel):
     ad_spend: float
     leads: List[LeadRecord]
+
 
 @app.post("/analyze_roi")
 def analyze_roi(request: Optional[AnalyzeRequest] = None):
@@ -110,6 +113,7 @@ def analyze_roi(request: Optional[AnalyzeRequest] = None):
 class LeadMatchRequest(BaseModel):
     ads_leads: List[str]
     crm_leads: List[str]
+
 
 @app.post("/match_leads")
 def match_leads(request: LeadMatchRequest):
@@ -165,6 +169,7 @@ async def upload_data(file: UploadFile = File(...)):
         "columns": list(df.columns),
         "message": "File uploaded and cached successfully."
     }
+
 
 @app.get("/cache_status")
 def cache_status():
@@ -241,37 +246,37 @@ def google_login():
     )
     return RedirectResponse(authorization_url)
 
-    @app.get("/auth/callback")
-def google_callback(code: str):
-    oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI)
-    token = oauth.fetch_token(TOKEN_URL, client_secret=GOOGLE_CLIENT_SECRET, code=code)
-    google_auth_cache["latest"] = token  # Shared cache from utils/global_cache.py
-    safe_token = {
-        "access_token": token.get("access_token", "")[:12] + "...",
-        "refresh_token": token.get("refresh_token", "")[:12] + "...",
-        "scope": token.get("scope"),
-        "expires_in": token.get("expires_in"),
-        "token_type": token.get("token_type"),
-    }
-    return JSONResponse({
-        "status": "success",
-        "message": "Google authorization complete. Tokens cached and stored in memory.",
-        "token_preview": safe_token
-    })
 
-    # --------------------------------------------------
-    # Persist Google token in database via /settings table
-    # --------------------------------------------------
+# --------------------------------------------------
+# Google OAuth Callback
+# --------------------------------------------------
+@app.get("/auth/callback")
+def google_callback(code: str):
+    """Handle OAuth2 callback from Google and store tokens."""
+    oauth = OAuth2Session(GOOGLE_CLIENT_ID, redirect_uri=REDIRECT_URI)
+    token = oauth.fetch_token(
+        TOKEN_URL,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        code=code
+    )
+
+    # ✅ Cache in memory (shared module)
+    google_auth_cache["latest"] = token
+
+    # ✅ Optional: persist in DB
     try:
-        from routes.settings_routes import update_or_create_key  # your helper from settings_routes
+        from routes.settings_routes import update_or_create_key
         refresh_token = token.get("refresh_token")
         access_token = token.get("access_token")
-        update_or_create_key(service_name="google_ads_refresh", api_key=refresh_token)
-        update_or_create_key(service_name="google_ads_access", api_key=access_token)
+        if refresh_token:
+            update_or_create_key(service_name="google_ads_refresh", api_key=refresh_token)
+        if access_token:
+            update_or_create_key(service_name="google_ads_access", api_key=access_token)
         print("✅ Google Ads tokens saved to database", file=sys.stderr)
     except Exception as e:
         print(f"⚠️ Failed to persist Google tokens: {e}", file=sys.stderr)
 
+    # ✅ Prepare preview for response
     safe_token = {
         "access_token": token.get("access_token", "")[:12] + "...",
         "refresh_token": token.get("refresh_token", "")[:12] + "...",
@@ -285,80 +290,3 @@ def google_callback(code: str):
         "message": "Google authorization complete. Tokens cached and stored in database.",
         "token_preview": safe_token
     })
-
-
-@app.get("/google/account_info")
-def get_google_account_info():
-    if "latest" not in google_auth_cache:
-        return {"error": "No Google tokens found. Please authorize first at /auth/login."}
-
-    token = google_auth_cache["latest"]
-    access_token = token.get("access_token")
-    if not access_token:
-        return {"error": "Access token missing or invalid."}
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers=headers)
-
-    if response.status_code != 200:
-        return {"error": "Failed to retrieve account info.", "details": response.text}
-
-    user_info = response.json()
-    return {
-        "status": "success",
-        "account": {
-            "name": user_info.get("name"),
-            "email": user_info.get("email"),
-            "verified_email": user_info.get("verified_email"),
-            "picture": user_info.get("picture")
-        }
-    }
-
-@app.get("/google/ads_summary")
-def get_ads_summary(customer_id: str = "6207912456"):
-    if "latest" not in google_auth_cache:
-        return {"error": "No Google tokens found. Please authorize first at /auth/login."}
-
-    token = google_auth_cache["latest"]
-    access_token = token.get("access_token")
-    if not access_token:
-        return {"error": "Access token missing or invalid."}
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "developer-token": os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
-        "Content-Type": "application/json"
-    }
-
-    query = {
-        "query": """
-            SELECT
-              customer.descriptive_name,
-              segments.date,
-              metrics.impressions,
-              metrics.clicks,
-              metrics.cost_micros
-            FROM customer
-            WHERE segments.date DURING LAST_7_DAYS
-            ORDER BY segments.date DESC
-        """
-    }
-
-    url = f"https://googleads.googleapis.com/v17/customers/{customer_id}/googleAds:searchStream"
-    response = requests.post(url, headers=headers, json=query)
-
-    if response.status_code != 200:
-        return {"error": "Failed to retrieve Ads data.", "details": response.text}
-
-    data = response.json()
-    results = []
-    for chunk in data:
-        for row in chunk.get("results", []):
-            results.append({
-                "date": row["segments"]["date"],
-                "impressions": row["metrics"]["impressions"],
-                "clicks": row["metrics"]["clicks"],
-                "spend_usd": round(row["metrics"]["cost_micros"] / 1_000_000, 2)
-            })
-
-    return {"status": "success", "records": results[:10]}
