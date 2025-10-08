@@ -1,10 +1,11 @@
-# routes/settings_routes.py
+# sparkdata/routes/settings_routes.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sparkdata.services.settings_service import SettingsService
 from sparkdata.models.api_key_model import Base
+import os  # ✅ You need this for DATABASE_URL
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create table if not exists
+# Create table if it doesn’t exist
 Base.metadata.create_all(bind=engine)
 
 
@@ -71,4 +72,3 @@ def test_key(service_name: str, db: Session = Depends(get_db)):
     """Test a stored API key (basic validation)."""
     service = SettingsService(db)
     return service.test_key(service_name)
-
