@@ -16,6 +16,22 @@ try:
 except Exception as e:
     print(f"⚠️ Could not import settings helpers: {e}", file=sys.stderr)
 
+# --------------------------------------------------
+# Import google_routes dynamically (with error capture)
+# --------------------------------------------------
+try:
+    from routes import google_routes
+    print("✅ google_routes imported successfully", file=sys.stderr)
+    app.include_router(
+        google_routes.router,
+        prefix="",
+        tags=["Google"]
+    )
+except Exception as e:
+    print("⚠️  GOOGLE ROUTE IMPORT FAILED:", e, file=sys.stderr)
+    traceback.print_exc()
+
+
 
 # ==================================================
 # 🔹 1. List all client accounts under your MCC
