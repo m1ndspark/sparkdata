@@ -155,3 +155,47 @@ def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
         "summary": summary
     }
 
+import os
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+@app.get("/generate_summary")
+def generate_summary(ad_spend: float = 0.0, total_revenue: float = 0.0):
+    if ad_spend <= 0 or total_revenue <= 0:
+        return {"error": "Both ad_spend and total_revenue must be greater than zero."}
+
+    roi = total_revenue / ad_spend
+    gain = total_revenue - ad_spend
+
+    prompt = (
+        f"You are a marketing analytics assistant. Write a professional one-paragraph summary "
+        f"explaining campaign performance based on these metrics:\n"
+        f"- Ad Spend: ${ad_spend:,.2f}\n"
+        f"- Revenue: ${total_revenue:,.2f}\n"
+        f"- ROI: {roi:.2f}x\n"
+        f"- Profit: ${gain:,.2f}\n"
+        f"Use a confident, client-friendly tone with clear business insight."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a marketing performance analyst."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=250,
+            temperature=0.7
+        )
+        ai_summary = response.choices[0].message.content.strip()
+    except Exception as e:
+        return {"error": str(e)}
+
+    return {
+        "ad_spend": ad_spend,
+        "total_revenue": total_revenue,
+        "roi": round(roi, 2),
+        "profit": round(gain, 2),
+        "summary": ai_summary
+    }
