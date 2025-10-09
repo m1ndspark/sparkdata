@@ -290,3 +290,18 @@ def google_callback(code: str):
         "message": "Google authorization complete. Tokens cached and stored in database.",
         "token_preview": safe_token
     })
+
+# --------------------------------------------------
+# Authentication Routes (Email/Password)
+# --------------------------------------------------
+try:
+    from routes import auth_routes
+    print("✅ auth_routes imported successfully", file=sys.stderr)
+    app.include_router(
+        auth_routes.router,
+        prefix="/auth",
+        tags=["Authentication"]
+    )
+except Exception as e:
+    print("⚠️ AUTH ROUTE IMPORT FAILED:", e, file=sys.stderr)
+    traceback.print_exc()
