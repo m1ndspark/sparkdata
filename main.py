@@ -292,6 +292,22 @@ def google_callback(code: str):
     })
 
 # --------------------------------------------------
+# Email (SendGrid) Routes
+# --------------------------------------------------
+try:
+    from routes import email_route
+    print("✅ email_route imported successfully", file=sys.stderr)
+    app.include_router(
+        email_route.router,
+        prefix="/api",
+        tags=["Email"]
+    )
+except Exception as e:
+    print("⚠️ EMAIL ROUTE IMPORT FAILED:", e, file=sys.stderr)
+    traceback.print_exc()
+
+
+# --------------------------------------------------
 # Authentication Routes (Email/Password)
 # --------------------------------------------------
 try:
