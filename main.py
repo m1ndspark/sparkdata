@@ -11,6 +11,7 @@ import os
 import sys
 import traceback
 import requests
+import uvicorn
 from utils.global_cache import uploaded_data_cache, google_auth_cache
 from openai import OpenAI
 from fastapi.responses import RedirectResponse, JSONResponse
